@@ -80,9 +80,56 @@ export class CallChainPanel {
                 vscode.commands.executeCommand('exposure_func.expandNode', message.nodeId);
                 break;
             }
+            case 'exportImage': {
+                await this.saveImage(message.format, message.dataUrl);
+                break;
+            }
+            case 'exportError': {
+                vscode.window.showErrorMessage(`Exposure Func: Export failed — ${message.message}`);
+                break;
+            }
             case 'ready': {
                 break;
             }
+        }
+    }
+
+    private async saveImage(format: 'png' | 'svg', dataUrl: string): Promise<void> {
+        const buffer = decodeDataUrl(dataUrl, format);
+        if (!buffer) {
+            vscode.window.showErrorMessage('Exposure Func: Could not decode the exported image.');
+            return;
+        }
+
+        const defaultName = `call-chain.${format}`;
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri;
+        const defaultUri = workspaceFolder
+            ? vscode.Uri.joinPath(workspaceFolder, defaultName)
+            : vscode.Uri.file(defaultName);
+
+        const target = await vscode.window.showSaveDialog({
+            defaultUri,
+            filters: format === 'png' ? { Images: ['png'] } : { Images: ['svg'] },
+        });
+
+        if (!target) {
+            return; // user cancelled
+        }
+
+        try {
+            await vscode.workspace.fs.writeFile(target, buffer);
+            const openAction = 'Open';
+            const choice = await vscode.window.showInformationMessage(
+                `Exposure Func: Saved ${format.toUpperCase()} to ${target.fsPath}`,
+                openAction
+            );
+            if (choice === openAction) {
+                vscode.commands.executeCommand('vscode.open', target);
+            }
+        } catch (err: any) {
+            vscode.window.showErrorMessage(
+                `Exposure Func: Failed to write image — ${err.message || err}`
+            );
         }
     }
 
@@ -143,4 +190,20 @@ function getNonce(): string {
         text += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return text;
+}
+
+function decodeDataUrl(dataUrl: string, format: 'png' | 'svg'): Buffer | null {
+    const commaIdx = dataUrl.indexOf(',');
+    if (commaIdx === -1) {
+        return null;
+    }
+    const meta = dataUrl.slice(0, commaIdx);
+    const payload = dataUrl.slice(commaIdx + 1);
+
+    if (meta.includes(';base64')) {
+        return Buffer.from(payload, 'base64');
+    }
+    // html-to-image's toSvg returns a URI-encoded data URL.
+    const text = decodeURIComponent(payload);
+    return Buffer.from(text, 'utf-8');
 }

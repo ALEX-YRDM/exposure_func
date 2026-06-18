@@ -51,4 +51,6 @@ export type ExtensionMessage =
 export type WebviewMessage =
   | { type: 'navigateTo'; file: string; line: number }
   | { type: 'expandNode'; nodeId: string }
+  | { type: 'exportImage'; format: 'png' | 'svg'; dataUrl: string }
+  | { type: 'exportError'; message: string }
   | { type: 'ready' };
