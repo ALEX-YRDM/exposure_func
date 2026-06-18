@@ -6,24 +6,99 @@
     <title>Call Chain</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      /* Auto theme: inherit from VSCode */
+      :root {
+        --bg: var(--vscode-editor-background, #1e1e1e);
+        --text: var(--vscode-editor-foreground, #e0e0e0);
+        --text-muted: var(--vscode-descriptionForeground, #888);
+        --accent: var(--vscode-focusBorder, #4a9eff);
+        --toolbar-bg: var(--vscode-sideBar-background, #252526);
+        --toolbar-border: var(--vscode-panel-border, #333);
+        --select-bg: var(--vscode-dropdown-background, #3c3c3c);
+        --grid-color: var(--vscode-editorWidget-border, #333);
+        --minimap-bg: var(--vscode-sideBar-background, #1a1a1a);
+        --node-bg: var(--vscode-editor-background, #1e2a3a);
+        --node-text: var(--vscode-editor-foreground, #e0e0e0);
+        --node-meta: var(--vscode-descriptionForeground, #888);
+        --node-border-color: var(--vscode-focusBorder, #4a9eff);
+        --node-params-bg: rgba(0, 0, 0, 0.3);
+        --node-param-text: #9cdcfe;
+        --node-param-name: #c586c0;
+        --node-default: #6a9955;
+        --edge-color: var(--vscode-editorWidget-border, #555);
+        --btn-border: var(--vscode-button-secondaryBackground, #555);
+      }
+
+      /* Force dark */
+      [data-theme="dark"] {
+        --bg: #1e1e1e;
+        --text: #e0e0e0;
+        --text-muted: #888;
+        --accent: #4a9eff;
+        --toolbar-bg: #252526;
+        --toolbar-border: #333;
+        --select-bg: #3c3c3c;
+        --grid-color: #333;
+        --minimap-bg: #1a1a1a;
+        --node-bg: #1e2a3a;
+        --node-text: #e0e0e0;
+        --node-meta: #888;
+        --node-border-color: #4a9eff;
+        --node-params-bg: rgba(0, 0, 0, 0.3);
+        --node-param-text: #9cdcfe;
+        --node-param-name: #c586c0;
+        --node-default: #6a9955;
+        --edge-color: #555;
+        --btn-border: #555;
+      }
+
+      /* Force light */
+      [data-theme="light"] {
+        --bg: #ffffff;
+        --text: #1e1e1e;
+        --text-muted: #666;
+        --accent: #0066cc;
+        --toolbar-bg: #f3f3f3;
+        --toolbar-border: #ddd;
+        --select-bg: #fff;
+        --grid-color: #e0e0e0;
+        --minimap-bg: #f8f8f8;
+        --node-bg: #ffffff;
+        --node-text: #1e1e1e;
+        --node-meta: #666;
+        --node-border-color: #0066cc;
+        --node-params-bg: rgba(0, 0, 0, 0.05);
+        --node-param-text: #0451a5;
+        --node-param-name: #af00db;
+        --node-default: #098658;
+        --edge-color: #999;
+        --btn-border: #ccc;
+      }
+
       body {
-        background: #1e1e1e;
+        background: var(--bg);
+        color: var(--text);
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         overflow: hidden;
       }
       #root { width: 100vw; height: 100vh; }
+
       .spinner {
         width: 32px; height: 32px;
-        border: 3px solid #333;
-        border-top-color: #4a9eff;
+        border: 3px solid var(--toolbar-border);
+        border-top-color: var(--accent);
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
       }
       @keyframes spin { to { transform: rotate(360deg); } }
-      .react-flow__node { cursor: pointer; }
-      .react-flow__controls { background: #2a2a2a; border: 1px solid #444; border-radius: 6px; }
-      .react-flow__controls-button { background: #2a2a2a; border-bottom: 1px solid #444; fill: #ccc; }
-      .react-flow__controls-button:hover { background: #333; }
+
+      .react-flow__node { cursor: grab; }
+      .react-flow__node:active { cursor: grabbing; }
+      .react-flow__controls { background: var(--toolbar-bg); border: 1px solid var(--toolbar-border); border-radius: 6px; }
+      .react-flow__controls-button { background: var(--toolbar-bg); border-bottom: 1px solid var(--toolbar-border); fill: var(--text); }
+      .react-flow__controls-button:hover { background: var(--select-bg); }
+      .react-flow__minimap { border-radius: 6px; border: 1px solid var(--toolbar-border); }
     </style>
   </head>
   <body>
