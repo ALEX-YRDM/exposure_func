@@ -8,3 +8,4 @@ python/vendor/
 __pycache__/
 *.pyc
 .DS_Store
+icon-source.png

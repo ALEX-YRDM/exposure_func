@@ -19,3 +19,6 @@ esbuild.config.mjs
 **/__pycache__/**
 **/*.pyc
 python/vendor/.installed
+
+# High-res icon source — keep in repo, but ship only the resized icon.png
+icon-source.png
