@@ -4,10 +4,18 @@
   "description": "Visualize Python function call chains as interactive flowcharts",
   "version": "0.1.0",
   "publisher": "exposure-func",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": ["Visualization", "Programming Languages"],
+  "keywords": [
+    "python",
+    "call chain",
+    "call graph",
+    "visualization",
+    "flowchart"
+  ],
   "activationEvents": [
     "onLanguage:python"
   ],
@@ -46,6 +54,7 @@
     }
   },
   "scripts": {
+    "vscode:prepublish": "npm run build",
     "build:webview": "cd webview && npm run build",
     "build:ext": "node esbuild.config.mjs",
     "build": "npm run build:webview && npm run build:ext",
