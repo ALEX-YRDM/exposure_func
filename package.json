@@ -2,7 +2,7 @@
   "name": "exposure-func",
   "displayName": "Exposure Func",
   "description": "Visualize Python function call chains as interactive flowcharts",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "ALEXYRDM",
   "license": "MIT",
   "icon": "icon.png",

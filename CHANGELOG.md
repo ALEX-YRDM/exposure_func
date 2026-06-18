@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2
+
+- Cache analysis results in an in-memory LRU so revisiting a function renders
+  instantly; the cache is invalidated when its file is saved.
+- Add a History panel listing recently viewed functions for quick switching.
+- Add a toolbar button to move the call chain view into a separate window, and
+  restore its content after the move.
+
 ## 0.1.1
 
 - Add extension icon.
