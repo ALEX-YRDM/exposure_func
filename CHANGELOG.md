@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3
+
+- Fix "python3/bin/python seems to be missing" error on machines where no
+  absolute Python path is configured. Bare command names (e.g. `python3`) are
+  now resolved via `shutil.which()` before being passed to Jedi.
+
 ## 0.1.2
 
 - Cache analysis results in an in-memory LRU so revisiting a function renders
