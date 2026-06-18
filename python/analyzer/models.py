@@ -21,6 +21,7 @@ class FunctionNode:
     start_line: Optional[int] = None
     end_line: Optional[int] = None
     is_project: bool = True
+    category: str = "project"  # "project" | "third_party" | "stdlib" | "builtin"
     signature: str = "()"
     params: list = field(default_factory=list)
 

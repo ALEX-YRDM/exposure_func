@@ -1,5 +1,7 @@
 """Jedi-based name resolution and argument mapping."""
 import ast
+import sys
+import sysconfig
 from pathlib import Path
 from typing import Optional
 
@@ -14,22 +16,92 @@ from .ast_walker import (
     build_node_from_def, compute_qualified_name, extract_params
 )
 
+BUILTIN_MODULES = frozenset({
+    'builtins', '_collections_abc', '_abc', 'abc', 'typing', 'typing_extensions',
+    'enum', 'dataclasses', 'functools', 'contextlib', 'collections.abc',
+})
 
-def get_jedi_environment(python_path: Optional[str]):
-    """Create a Jedi environment from a Python interpreter path."""
-    if not python_path:
-        return None
-    try:
-        return jedi.create_environment(python_path)
-    except Exception:
-        return None
+SKIP_BUILTIN_NAMES = frozenset({
+    'print', 'len', 'range', 'int', 'str', 'float', 'bool', 'list', 'dict',
+    'tuple', 'set', 'frozenset', 'type', 'object', 'super', 'isinstance',
+    'issubclass', 'hasattr', 'getattr', 'setattr', 'delattr', 'callable',
+    'iter', 'next', 'enumerate', 'zip', 'map', 'filter', 'sorted', 'reversed',
+    'min', 'max', 'sum', 'abs', 'all', 'any', 'repr', 'id', 'hash', 'hex',
+    'oct', 'bin', 'ord', 'chr', 'format', 'vars', 'dir', 'input',
+    'ValueError', 'TypeError', 'KeyError', 'IndexError', 'AttributeError',
+    'RuntimeError', 'StopIteration', 'NotImplementedError', 'FileNotFoundError',
+    'OSError', 'IOError', 'Exception', 'BaseException', 'AssertionError',
+    'ImportError', 'ModuleNotFoundError', 'NameError', 'ZeroDivisionError',
+    'OverflowError', 'RecursionError', 'SystemError', 'UnicodeError',
+})
+
+_stdlib_paths = None
+
+def _get_stdlib_paths():
+    global _stdlib_paths
+    if _stdlib_paths is None:
+        paths = set()
+        stdlib = sysconfig.get_paths().get('stdlib')
+        if stdlib:
+            paths.add(str(Path(stdlib).resolve()))
+        platstdlib = sysconfig.get_paths().get('platstdlib')
+        if platstdlib:
+            paths.add(str(Path(platstdlib).resolve()))
+        for p in sys.path:
+            pp = Path(p).resolve()
+            if 'lib/python' in str(pp) and 'site-packages' not in str(pp):
+                paths.add(str(pp))
+        _stdlib_paths = paths
+    return _stdlib_paths
+
+
+def _classify_module(module_name: str, module_path: Optional[str], project_root: str) -> str:
+    """Classify a module as project/builtin/stdlib/third_party."""
+    if not module_name and not module_path:
+        return "builtin"
+
+    if module_name in BUILTIN_MODULES or (module_name and module_name.startswith('builtins')):
+        return "builtin"
+
+    if module_path:
+        resolved = str(Path(module_path).resolve())
+        project_resolved = str(Path(project_root).resolve())
+        if resolved.startswith(project_resolved):
+            return "project"
+
+        for sp in _get_stdlib_paths():
+            if resolved.startswith(sp) and 'site-packages' not in resolved:
+                return "stdlib"
+
+        if 'site-packages' in resolved or 'dist-packages' in resolved:
+            return "third_party"
+
+        if 'typeshed' in resolved:
+            return "stdlib"
+
+    if module_name:
+        top = module_name.split('.')[0]
+        if top in sys.stdlib_module_names if hasattr(sys, 'stdlib_module_names') else False:
+            return "stdlib"
+
+    return "third_party"
 
 
 def analyze(file: str, line: int, col: int, project_root: str,
-            python_path: Optional[str] = None, max_depth: int = 10) -> dict:
-    """Analyze the call chain of a function at the given location."""
+            python_path: Optional[str] = None, max_depth: int = 10,
+            filter_categories: Optional[list] = None) -> dict:
+    """Analyze the call chain of a function at the given location.
+
+    filter_categories: list of categories to INCLUDE. None = include all.
+                       e.g. ["project", "third_party"] to hide builtin/stdlib.
+    """
     if not jedi:
         raise RuntimeError("jedi is not installed")
+
+    skip_categories = set()
+    if filter_categories is not None:
+        all_cats = {"project", "third_party", "stdlib", "builtin"}
+        skip_categories = all_cats - set(filter_categories)
 
     project_kwargs = {"path": project_root}
     if python_path:
@@ -76,20 +148,24 @@ def analyze(file: str, line: int, col: int, project_root: str,
             if not d.module_name and not d.module_path:
                 continue
 
-            callee_full = d.full_name or d.name or "unknown"
+            callee_name = d.name or "unknown"
+            if callee_name in SKIP_BUILTIN_NAMES:
+                continue
+
+            callee_full = d.full_name or callee_name
             module_str = d.module_name or ""
             callee_qname = f"{module_str}:{callee_full}" if module_str else f":{callee_full}"
 
-            is_project_code = False
-            if d.module_path:
-                try:
-                    is_project_code = str(Path(d.module_path).resolve()).startswith(
-                        str(Path(project_root).resolve()))
-                except Exception:
-                    pass
+            module_path_str = str(d.module_path) if d.module_path else None
+            category = _classify_module(module_str, module_path_str, project_root)
+
+            if category in skip_categories:
+                continue
+
+            is_project_code = (category == "project")
 
             if callee_qname not in nodes:
-                nodes[callee_qname] = _build_leaf_node(d, callee_qname, is_project_code)
+                nodes[callee_qname] = _build_leaf_node(d, callee_qname, is_project_code, category)
 
             callee_params = _get_callee_params(d)
             edge = _build_edge(qname, callee_qname, call, callee_params)
@@ -124,7 +200,8 @@ def analyze(file: str, line: int, col: int, project_root: str,
 
 
 def expand_node(node_id: str, project_root: str,
-                python_path: Optional[str] = None, max_depth: int = 3) -> dict:
+                python_path: Optional[str] = None, max_depth: int = 3,
+                filter_categories: Optional[list] = None) -> dict:
     """Expand a specific node (e.g., a third-party leaf the user clicks)."""
     parts = node_id.split(":", 1)
     if len(parts) != 2:
@@ -145,12 +222,12 @@ def expand_node(node_id: str, project_root: str,
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if node.name == func_name:
                 return analyze(module_file, node.lineno, node.col_offset,
-                               project_root, python_path, max_depth)
+                               project_root, python_path, max_depth, filter_categories)
 
     return {"root": node_id, "nodes": [], "edges": []}
 
 
-def _build_leaf_node(d, qname: str, is_project: bool) -> FunctionNode:
+def _build_leaf_node(d, qname: str, is_project: bool, category: str = "third_party") -> FunctionNode:
     """Build a leaf FunctionNode from a Jedi Name object."""
     class_name = None
     name = d.name or "unknown"
@@ -173,6 +250,7 @@ def _build_leaf_node(d, qname: str, is_project: bool) -> FunctionNode:
         start_line=d.line,
         end_line=None,
         is_project=is_project,
+        category=category,
         signature=sig,
         params=params,
     )
