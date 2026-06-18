@@ -1,0 +1,63 @@
+{
+  "name": "exposure-func",
+  "displayName": "Exposure Func",
+  "description": "Visualize Python function call chains as interactive flowcharts",
+  "version": "0.1.0",
+  "publisher": "exposure-func",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Visualization", "Programming Languages"],
+  "activationEvents": [
+    "onLanguage:python"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "exposure_func.showCallChain",
+        "title": "Show Call Chain",
+        "category": "Exposure Func"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "exposure_func.showCallChain",
+          "when": "editorLangId == python",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Exposure Func",
+      "properties": {
+        "exposureFunc.pythonPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to Python interpreter (leave empty to auto-detect from Python extension)"
+        },
+        "exposureFunc.maxDepth": {
+          "type": "number",
+          "default": 10,
+          "description": "Maximum recursion depth for call chain analysis"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build:webview": "cd webview && npm run build",
+    "build:ext": "node esbuild.config.mjs",
+    "build": "npm run build:webview && npm run build:ext",
+    "watch:ext": "node esbuild.config.mjs --watch",
+    "watch:webview": "cd webview && npm run dev",
+    "package": "npm run build && vsce package",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0"
+  }
+}
