@@ -3,10 +3,19 @@
 src/**
 webview/src/**
 webview/node_modules/**
+webview/index.html
+webview/vite.config.ts
+webview/tsconfig.json
+webview/package.json
+webview/package-lock.json
 python/tests/**
-python/vendor/**
 node_modules/**
 .gitignore
 tsconfig.json
 esbuild.config.mjs
 **/*.map
+
+# Bundle python/vendor (jedi + parso) but strip caches to keep size down
+**/__pycache__/**
+**/*.pyc
+python/vendor/.installed

@@ -13,6 +13,11 @@ export async function ensureDependencies(
     const vendorDir = path.join(extensionPath, 'python', 'vendor');
     const marker = path.join(vendorDir, '.installed');
 
+    // jedi is pre-bundled into the published extension — nothing to install.
+    if (fs.existsSync(path.join(vendorDir, 'jedi'))) {
+        return;
+    }
+
     if (fs.existsSync(marker)) {
         return;
     }
