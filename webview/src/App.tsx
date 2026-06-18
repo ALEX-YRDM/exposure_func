@@ -1,10 +1,13 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { CallChainGraph } from './components/CallChainGraph';
 import { useVSCode } from './hooks/useVSCode';
 import type { CallChainData, ExtensionMessage, NodeCategory } from './types/callChain';
 
 type Theme = 'dark' | 'light' | 'auto';
 type CategoryFilter = 'project' | 'with_third_party' | 'all';
+export type LayoutDirection = 'TB' | 'LR' | 'BT' | 'RL';
+export type ExportFormat = 'png' | 'svg';
+export type ExportFn = (format: ExportFormat) => void;
 
 const CATEGORY_PRESETS: Record<CategoryFilter, NodeCategory[]> = {
   project: ['project'],
@@ -19,6 +22,8 @@ export function App() {
   const [maxDepth, setMaxDepth] = useState(3);
   const [theme, setTheme] = useState<Theme>('auto');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('with_third_party');
+  const [direction, setDirection] = useState<LayoutDirection>('TB');
+  const exportRef = useRef<ExportFn | null>(null);
 
   const visibleCategories = useMemo(
     () => new Set<string>(CATEGORY_PRESETS[categoryFilter]),
@@ -66,6 +71,20 @@ export function App() {
     [postMessage]
   );
 
+  const handleExportImage = useCallback(
+    (format: ExportFormat, dataUrl: string) => {
+      postMessage({ type: 'exportImage', format, dataUrl });
+    },
+    [postMessage]
+  );
+
+  const handleExportError = useCallback(
+    (message: string) => {
+      postMessage({ type: 'exportError', message });
+    },
+    [postMessage]
+  );
+
   if (loading) {
     return (
       <div style={centerStyle}>
@@ -102,6 +121,9 @@ export function App() {
         onThemeChange={setTheme}
         categoryFilter={categoryFilter}
         onCategoryFilterChange={setCategoryFilter}
+        direction={direction}
+        onDirectionChange={setDirection}
+        onExport={(fmt) => exportRef.current?.(fmt)}
         nodeCount={data.nodes.length}
         edgeCount={data.edges.length}
       />
@@ -110,8 +132,12 @@ export function App() {
           data={data}
           maxDepth={maxDepth}
           visibleCategories={visibleCategories}
+          direction={direction}
+          exportRef={exportRef}
           onNavigate={handleNavigate}
           onExpandLeaf={handleExpandLeaf}
+          onExportImage={handleExportImage}
+          onExportError={handleExportError}
         />
       </div>
     </div>
@@ -125,6 +151,9 @@ interface ToolbarProps {
   onThemeChange: (t: Theme) => void;
   categoryFilter: CategoryFilter;
   onCategoryFilterChange: (f: CategoryFilter) => void;
+  direction: LayoutDirection;
+  onDirectionChange: (d: LayoutDirection) => void;
+  onExport: (format: ExportFormat) => void;
   nodeCount: number;
   edgeCount: number;
 }
@@ -136,6 +165,9 @@ function Toolbar({
   onThemeChange,
   categoryFilter,
   onCategoryFilterChange,
+  direction,
+  onDirectionChange,
+  onExport,
   nodeCount,
   edgeCount,
 }: ToolbarProps) {
@@ -178,6 +210,20 @@ function Toolbar({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <label>Layout:</label>
+        <select
+          value={direction}
+          onChange={(e) => onDirectionChange(e.target.value as LayoutDirection)}
+          style={selectStyle}
+        >
+          <option value="TB">Top → Bottom</option>
+          <option value="LR">Left → Right</option>
+          <option value="BT">Bottom → Top</option>
+          <option value="RL">Right → Left</option>
+        </select>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <label>Theme:</label>
         <select
           value={theme}
@@ -188,6 +234,15 @@ function Toolbar({
           <option value="dark">Dark</option>
           <option value="light">Light</option>
         </select>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <button onClick={() => onExport('png')} style={buttonStyle} title="Export as PNG">
+          Export PNG
+        </button>
+        <button onClick={() => onExport('svg')} style={buttonStyle} title="Export as SVG">
+          SVG
+        </button>
       </div>
 
       <div style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: 11 }}>
@@ -213,4 +268,14 @@ const selectStyle: React.CSSProperties = {
   borderRadius: 4,
   padding: '2px 6px',
   fontSize: 11,
+};
+
+const buttonStyle: React.CSSProperties = {
+  background: 'var(--select-bg)',
+  color: 'var(--text)',
+  border: '1px solid var(--toolbar-border)',
+  borderRadius: 4,
+  padding: '3px 8px',
+  fontSize: 11,
+  cursor: 'pointer',
 };
