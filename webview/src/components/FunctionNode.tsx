@@ -2,11 +2,14 @@ import React, { memo, useState } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import type { FunctionNode as FunctionNodeType } from '../types/callChain';
 
+type LayoutDirection = 'TB' | 'LR' | 'BT' | 'RL';
+
 interface FunctionNodeData {
   label: string;
   functionData: FunctionNodeType;
   isExpanded: boolean;
   hasChildren: boolean;
+  direction?: LayoutDirection;
   onToggleExpand: (nodeId: string) => void;
   onNavigate: (file: string, line: number) => void;
   onExpandLeaf: (nodeId: string) => void;
@@ -19,11 +22,20 @@ const CATEGORY_STYLE: Record<string, { color: string; dashed: boolean; label: st
   builtin: { color: '#777', dashed: true, label: 'blt' },
 };
 
+// Handle positions per layout direction: [target (incoming), source (outgoing)]
+const HANDLE_POSITIONS: Record<LayoutDirection, [Position, Position]> = {
+  TB: [Position.Top, Position.Bottom],
+  BT: [Position.Bottom, Position.Top],
+  LR: [Position.Left, Position.Right],
+  RL: [Position.Right, Position.Left],
+};
+
 function FunctionNodeComponent({ data }: NodeProps) {
   const nodeData = data as unknown as FunctionNodeData;
   const fn = nodeData.functionData;
   const isProject = fn.is_project;
   const cat = CATEGORY_STYLE[fn.category] || CATEGORY_STYLE.third_party;
+  const [targetPos, sourcePos] = HANDLE_POSITIONS[nodeData.direction || 'TB'];
   const fileName = fn.file_path?.split('/').pop() || '';
   const lineInfo = fn.start_line
     ? fn.end_line
@@ -71,7 +83,7 @@ function FunctionNodeComponent({ data }: NodeProps) {
         position: 'relative',
       }}
     >
-      <Handle type="target" position={Position.Top} style={{ background: cat.color }} />
+      <Handle type="target" position={targetPos} style={{ background: cat.color }} />
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
@@ -93,7 +105,8 @@ function FunctionNodeComponent({ data }: NodeProps) {
           {fn.class_name && (
             <span
               style={{
-                background: '#6a5acd',
+                background: 'var(--class-badge-bg, #6a5acd)',
+                color: 'var(--class-badge-text, #fff)',
                 padding: '1px 6px',
                 borderRadius: 4,
                 fontSize: 10,
@@ -152,7 +165,7 @@ function FunctionNodeComponent({ data }: NodeProps) {
         </div>
       )}
 
-      <Handle type="source" position={Position.Bottom} style={{ background: cat.color }} />
+      <Handle type="source" position={sourcePos} style={{ background: cat.color }} />
     </div>
   );
 }
