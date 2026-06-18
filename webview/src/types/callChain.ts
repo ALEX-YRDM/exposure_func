@@ -5,6 +5,8 @@ export interface ParamInfo {
   kind: 'POSITIONAL_OR_KEYWORD' | 'KEYWORD_ONLY' | 'VAR_POSITIONAL' | 'VAR_KEYWORD' | string;
 }
 
+export type NodeCategory = 'project' | 'third_party' | 'stdlib' | 'builtin';
+
 export interface FunctionNode {
   id: string;
   name: string;
@@ -14,6 +16,7 @@ export interface FunctionNode {
   start_line: number | null;
   end_line: number | null;
   is_project: boolean;
+  category: NodeCategory;
   signature: string;
   params: ParamInfo[];
 }
