@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { CallChainGraph } from './components/CallChainGraph';
 import { TextTreeModal } from './components/TextTreeModal';
+import { HistoryPanel } from './components/HistoryPanel';
 import { buildCallTree } from './utils/textTree';
 import { useVSCode } from './hooks/useVSCode';
-import type { CallChainData, ExtensionMessage, NodeCategory } from './types/callChain';
+import type { CallChainData, ExtensionMessage, NodeCategory, HistoryEntry } from './types/callChain';
 
 type Theme = 'dark' | 'light' | 'auto';
 type CategoryFilter = 'project' | 'with_third_party' | 'all';
@@ -26,6 +27,7 @@ export function App() {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('with_third_party');
   const [direction, setDirection] = useState<LayoutDirection>('TB');
   const [showText, setShowText] = useState(false);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const exportRef = useRef<ExportFn | null>(null);
 
   const visibleCategories = useMemo(
@@ -47,6 +49,9 @@ export function App() {
       case 'error':
         setError(msg.message);
         setLoading(false);
+        break;
+      case 'history':
+        setHistory(msg.history);
         break;
     }
   });
@@ -95,6 +100,17 @@ export function App() {
     [postMessage]
   );
 
+  const handleLoadHistory = useCallback(
+    (entry: HistoryEntry) => {
+      postMessage({ type: 'loadFromHistory', file: entry.file, line: entry.line, col: entry.col });
+    },
+    [postMessage]
+  );
+
+  const handlePopOut = useCallback(() => {
+    postMessage({ type: 'popOut' });
+  }, [postMessage]);
+
   const treeText = useMemo(
     () => (data ? buildCallTree(data, maxDepth, visibleCategories) : ''),
     [data, maxDepth, visibleCategories]
@@ -140,6 +156,9 @@ export function App() {
         onDirectionChange={setDirection}
         onExport={(fmt) => exportRef.current?.(fmt)}
         onShowText={() => setShowText(true)}
+        onPopOut={handlePopOut}
+        history={history}
+        onLoadHistory={handleLoadHistory}
         nodeCount={data.nodes.length}
         edgeCount={data.edges.length}
       />
@@ -178,6 +197,9 @@ interface ToolbarProps {
   onDirectionChange: (d: LayoutDirection) => void;
   onExport: (format: ExportFormat) => void;
   onShowText: () => void;
+  onPopOut: () => void;
+  history: HistoryEntry[];
+  onLoadHistory: (entry: HistoryEntry) => void;
   nodeCount: number;
   edgeCount: number;
 }
@@ -193,6 +215,9 @@ function Toolbar({
   onDirectionChange,
   onExport,
   onShowText,
+  onPopOut,
+  history,
+  onLoadHistory,
   nodeCount,
   edgeCount,
 }: ToolbarProps) {
@@ -208,6 +233,12 @@ function Toolbar({
       color: 'var(--text)',
       flexShrink: 0,
     }}>
+      <HistoryPanel
+        history={history}
+        currentKey={history[0]?.key ?? null}
+        onSelect={onLoadHistory}
+      />
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <label>Depth:</label>
         <input
@@ -262,6 +293,9 @@ function Toolbar({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <button onClick={onPopOut} style={buttonStyle} title="Move this view into a separate window">
+          ↗ Window
+        </button>
         <button onClick={onShowText} style={buttonStyle} title="View call chain as copyable text">
           Text
         </button>

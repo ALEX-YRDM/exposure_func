@@ -4,6 +4,7 @@ import { PythonBridge } from './analyzer/pythonBridge';
 import { getPythonPath, validatePython } from './utils/pythonEnv';
 import { ensureDependencies } from './utils/depInstaller';
 import { registerShowCallChainCommand } from './commands/showCallChain';
+import { CallChainCache } from './analyzer/callChainCache';
 import { CallChainCodeLensProvider } from './providers/codeLensProvider';
 import { CallChainPanel } from './providers/callChainPanel';
 
@@ -33,8 +34,18 @@ export async function activate(context: vscode.ExtensionContext) {
         return bridge;
     };
 
-    const commandDisposable = registerShowCallChainCommand(context, getBridge);
+    const cache = new CallChainCache();
+
+    const commandDisposable = registerShowCallChainCommand(context, getBridge, cache);
     context.subscriptions.push(commandDisposable);
+
+    // Invalidate cached analyses when a Python file is saved.
+    const saveDisposable = vscode.workspace.onDidSaveTextDocument((doc) => {
+        if (doc.languageId === 'python') {
+            cache.invalidateFile(doc.uri.fsPath);
+        }
+    });
+    context.subscriptions.push(saveDisposable);
 
     const codeLensProvider = new CallChainCodeLensProvider();
     const codeLensDisposable = vscode.languages.registerCodeLensProvider(

@@ -43,10 +43,19 @@ export interface CallChainData {
   edges: CallEdge[];
 }
 
+export interface HistoryEntry {
+  key: string;
+  file: string;
+  line: number;
+  col: number;
+  label: string;
+}
+
 export type ExtensionMessage =
   | { type: 'update'; data: CallChainData }
   | { type: 'loading' }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string }
+  | { type: 'history'; history: HistoryEntry[] };
 
 export type WebviewMessage =
   | { type: 'navigateTo'; file: string; line: number }
@@ -54,4 +63,6 @@ export type WebviewMessage =
   | { type: 'exportImage'; format: 'png' | 'svg'; dataUrl: string }
   | { type: 'exportError'; message: string }
   | { type: 'copyToClipboard'; text: string }
+  | { type: 'loadFromHistory'; file: string; line: number; col: number }
+  | { type: 'popOut' }
   | { type: 'ready' };

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { HistoryEntry } from '../analyzer/callChainCache';
 
 export class CallChainPanel {
     public static currentPanel: CallChainPanel | undefined;
@@ -8,6 +9,8 @@ export class CallChainPanel {
 
     private readonly panel: vscode.WebviewPanel;
     private disposables: vscode.Disposable[] = [];
+    private lastData: any | undefined;
+    private lastHistory: HistoryEntry[] | undefined;
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
         this.panel = panel;
@@ -23,17 +26,17 @@ export class CallChainPanel {
     }
 
     public static createOrShow(extensionUri: vscode.Uri): CallChainPanel {
-        const column = vscode.ViewColumn.Beside;
-
         if (CallChainPanel.currentPanel) {
-            CallChainPanel.currentPanel.panel.reveal(column);
+            // Reveal without forcing a column so the panel stays where it is
+            // (e.g. a separate window the user moved it to).
+            CallChainPanel.currentPanel.panel.reveal();
             return CallChainPanel.currentPanel;
         }
 
         const panel = vscode.window.createWebviewPanel(
             'exposureFuncCallChain',
             'Call Chain',
-            column,
+            vscode.ViewColumn.Beside,
             {
                 enableScripts: true,
                 retainContextWhenHidden: true,
@@ -48,6 +51,7 @@ export class CallChainPanel {
     }
 
     public postUpdate(data: any): void {
+        this.lastData = data;
         this.panel.webview.postMessage({ type: 'update', data });
     }
 
@@ -57,6 +61,11 @@ export class CallChainPanel {
 
     public postError(message: string): void {
         this.panel.webview.postMessage({ type: 'error', message });
+    }
+
+    public postHistory(history: HistoryEntry[]): void {
+        this.lastHistory = history;
+        this.panel.webview.postMessage({ type: 'history', history });
     }
 
     private async handleMessage(message: any): Promise<void> {
@@ -95,7 +104,31 @@ export class CallChainPanel {
                 }
                 break;
             }
+            case 'loadFromHistory': {
+                const { file, line, col } = message;
+                if (file && typeof line === 'number') {
+                    vscode.commands.executeCommand(
+                        'exposure_func.showCallChain',
+                        vscode.Uri.file(file),
+                        line,
+                        col ?? 0
+                    );
+                }
+                break;
+            }
+            case 'popOut': {
+                vscode.commands.executeCommand('workbench.action.moveEditorToNewWindow');
+                break;
+            }
             case 'ready': {
+                // The webview (re)loaded — e.g. after being moved to another
+                // window. Restore its last content.
+                if (this.lastData) {
+                    this.panel.webview.postMessage({ type: 'update', data: this.lastData });
+                }
+                if (this.lastHistory) {
+                    this.panel.webview.postMessage({ type: 'history', history: this.lastHistory });
+                }
                 break;
             }
         }
