@@ -53,4 +53,5 @@ export type WebviewMessage =
   | { type: 'expandNode'; nodeId: string }
   | { type: 'exportImage'; format: 'png' | 'svg'; dataUrl: string }
   | { type: 'exportError'; message: string }
+  | { type: 'copyToClipboard'; text: string }
   | { type: 'ready' };

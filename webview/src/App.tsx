@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { CallChainGraph } from './components/CallChainGraph';
+import { TextTreeModal } from './components/TextTreeModal';
+import { buildCallTree } from './utils/textTree';
 import { useVSCode } from './hooks/useVSCode';
 import type { CallChainData, ExtensionMessage, NodeCategory } from './types/callChain';
 
@@ -23,6 +25,7 @@ export function App() {
   const [theme, setTheme] = useState<Theme>('auto');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('with_third_party');
   const [direction, setDirection] = useState<LayoutDirection>('TB');
+  const [showText, setShowText] = useState(false);
   const exportRef = useRef<ExportFn | null>(null);
 
   const visibleCategories = useMemo(
@@ -85,6 +88,18 @@ export function App() {
     [postMessage]
   );
 
+  const handleCopyText = useCallback(
+    (text: string) => {
+      postMessage({ type: 'copyToClipboard', text });
+    },
+    [postMessage]
+  );
+
+  const treeText = useMemo(
+    () => (data ? buildCallTree(data, maxDepth, visibleCategories) : ''),
+    [data, maxDepth, visibleCategories]
+  );
+
   if (loading) {
     return (
       <div style={centerStyle}>
@@ -124,6 +139,7 @@ export function App() {
         direction={direction}
         onDirectionChange={setDirection}
         onExport={(fmt) => exportRef.current?.(fmt)}
+        onShowText={() => setShowText(true)}
         nodeCount={data.nodes.length}
         edgeCount={data.edges.length}
       />
@@ -140,6 +156,13 @@ export function App() {
           onExportError={handleExportError}
         />
       </div>
+      {showText && (
+        <TextTreeModal
+          text={treeText}
+          onClose={() => setShowText(false)}
+          onCopy={handleCopyText}
+        />
+      )}
     </div>
   );
 }
@@ -154,6 +177,7 @@ interface ToolbarProps {
   direction: LayoutDirection;
   onDirectionChange: (d: LayoutDirection) => void;
   onExport: (format: ExportFormat) => void;
+  onShowText: () => void;
   nodeCount: number;
   edgeCount: number;
 }
@@ -168,6 +192,7 @@ function Toolbar({
   direction,
   onDirectionChange,
   onExport,
+  onShowText,
   nodeCount,
   edgeCount,
 }: ToolbarProps) {
@@ -237,6 +262,9 @@ function Toolbar({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <button onClick={onShowText} style={buttonStyle} title="View call chain as copyable text">
+          Text
+        </button>
         <button onClick={() => onExport('png')} style={buttonStyle} title="Export as PNG">
           Export PNG
         </button>

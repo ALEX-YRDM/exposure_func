@@ -88,6 +88,13 @@ export class CallChainPanel {
                 vscode.window.showErrorMessage(`Exposure Func: Export failed — ${message.message}`);
                 break;
             }
+            case 'copyToClipboard': {
+                if (typeof message.text === 'string') {
+                    await vscode.env.clipboard.writeText(message.text);
+                    vscode.window.setStatusBarMessage('Exposure Func: Call chain copied to clipboard', 2000);
+                }
+                break;
+            }
             case 'ready': {
                 break;
             }
