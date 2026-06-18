@@ -1,5 +1,7 @@
 """Jedi-based name resolution and argument mapping."""
 import ast
+import os
+import shutil
 import sys
 import sysconfig
 from pathlib import Path
@@ -105,7 +107,18 @@ def analyze(file: str, line: int, col: int, project_root: str,
 
     project_kwargs = {"path": project_root}
     if python_path:
-        project_kwargs["environment_path"] = python_path
+        # jedi expects an absolute path to the interpreter binary, not a bare
+        # command name.  Resolve "python3" / "python" via shutil.which() so the
+        # user doesn't need to configure an absolute path.
+        resolved = python_path
+        if not os.path.isabs(python_path):
+            found = shutil.which(python_path)
+            if found:
+                resolved = found
+            else:
+                resolved = None  # skip setting environment_path
+        if resolved:
+            project_kwargs["environment_path"] = resolved
     try:
         project = jedi.Project(**project_kwargs)
     except TypeError:
